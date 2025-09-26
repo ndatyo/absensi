@@ -27,9 +27,13 @@
 <body class="gradient-bg min-h-screen">
     <div class="container mx-auto px-4 py-8">
         <!-- Header -->
-        <div class="text-center mb-8">
+        <div class="text-center mb-8 relative">
             <h1 class="text-4xl font-bold text-white mb-2">📍 Absensi GPS</h1>
             <p class="text-white/80">Sistem absensi dengan lokasi dan token keamanan</p>
+            <!-- Admin Button - Top Right -->
+            <button id="adminBtn" class="absolute top-0 right-0 bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg text-sm backdrop-blur-sm border border-white/30 transition-all">
+                🔐 Admin
+            </button>
         </div>
 
         <!-- Main Content -->
@@ -73,12 +77,7 @@
                 </form>
             </div>
 
-            <!-- Admin Access -->
-            <div class="text-center">
-                <button id="adminBtn" class="text-white/80 hover:text-white text-sm underline">
-                    🔐 Akses Admin
-                </button>
-            </div>
+
         </div>
 
         <!-- Admin Panel -->
@@ -316,6 +315,49 @@
         }
 
         // Location functions
+        function getLocationName(lat, lng) {
+            // Use reverse geocoding to get location name
+            fetch(`https://api.opencagedata.com/geocode/v1/json?q=${lat}+${lng}&key=demo&language=id&no_annotations=1&limit=1`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.results && data.results.length > 0) {
+                        const result = data.results[0];
+                        const components = result.components;
+                        
+                        // Build location name from components
+                        let locationName = '';
+                        if (components.village) locationName += components.village;
+                        else if (components.suburb) locationName += components.suburb;
+                        else if (components.neighbourhood) locationName += components.neighbourhood;
+                        
+                        if (components.city) {
+                            if (locationName) locationName += ', ';
+                            locationName += components.city;
+                        } else if (components.town) {
+                            if (locationName) locationName += ', ';
+                            locationName += components.town;
+                        }
+                        
+                        if (components.state) {
+                            if (locationName) locationName += ', ';
+                            locationName += components.state;
+                        }
+                        
+                        if (locationName) {
+                            coordinates.innerHTML = `
+                                <div>Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}</div>
+                                <div class="text-blue-600 font-medium">${locationName}</div>
+                            `;
+                            userLocation.locationName = locationName;
+                        }
+                    }
+                })
+                .catch(error => {
+                    // If geocoding fails, just show coordinates
+                    console.log('Geocoding failed:', error);
+                });
+        }
+
         function requestLocation() {
             if (!navigator.geolocation) {
                 locationText.textContent = 'GPS tidak didukung';
@@ -337,6 +379,9 @@
                     locationText.textContent = 'Lokasi terdeteksi ✓';
                     locationText.className = 'text-sm text-green-600';
                     coordinates.textContent = `Lat: ${userLocation.latitude.toFixed(6)}, Lng: ${userLocation.longitude.toFixed(6)}`;
+                    
+                    // Get location name from coordinates
+                    getLocationName(userLocation.latitude, userLocation.longitude);
                     
                     submitBtn.disabled = false;
                 },
@@ -440,6 +485,7 @@
                 date: today,
                 time: currentTime,
                 location: userLocation,
+                locationName: userLocation.locationName || '',
                 timestamp: Date.now()
             };
             
@@ -451,7 +497,13 @@
             document.getElementById('modalNISN').textContent = student.nisn;
             document.getElementById('modalClass').textContent = student.class;
             document.getElementById('modalTime').textContent = currentTime;
-            document.getElementById('modalLocation').textContent = `${userLocation.latitude.toFixed(6)}, ${userLocation.longitude.toFixed(6)}`;
+            
+            // Show location with name if available
+            let locationDisplay = `${userLocation.latitude.toFixed(6)}, ${userLocation.longitude.toFixed(6)}`;
+            if (userLocation.locationName) {
+                locationDisplay = `${userLocation.locationName} (${userLocation.latitude.toFixed(4)}, ${userLocation.longitude.toFixed(4)})`;
+            }
+            document.getElementById('modalLocation').textContent = locationDisplay;
             
             // Show success modal
             successModal.classList.remove('hidden');
@@ -686,9 +738,9 @@
                 return;
             }
             
-            const csvContent = "data:text/csv;charset=utf-8,Nama,NISN,Kelas,Tanggal,Waktu,Latitude,Longitude\n" + 
+            const csvContent = "data:text/csv;charset=utf-8,Nama,NISN,Kelas,Tanggal,Waktu,Lokasi,Latitude,Longitude\n" + 
                 todayRecords.map(record => 
-                    `${record.name},${record.nisn},${record.class},${record.date},${record.time},${record.location.latitude},${record.location.longitude}`
+                    `${record.name},${record.nisn},${record.class},${record.date},${record.time},"${record.locationName || 'Tidak diketahui'}",${record.location.latitude},${record.location.longitude}`
                 ).join('\n');
             
             const encodedUri = encodeURI(csvContent);
@@ -706,9 +758,9 @@
                 return;
             }
             
-            const csvContent = "data:text/csv;charset=utf-8,Nama,NISN,Kelas,Tanggal,Waktu,Latitude,Longitude\n" + 
+            const csvContent = "data:text/csv;charset=utf-8,Nama,NISN,Kelas,Tanggal,Waktu,Lokasi,Latitude,Longitude\n" + 
                 attendanceRecords.map(record => 
-                    `${record.name},${record.nisn},${record.class},${record.date},${record.time},${record.location.latitude},${record.location.longitude}`
+                    `${record.name},${record.nisn},${record.class},${record.date},${record.time},"${record.locationName || 'Tidak diketahui'}",${record.location.latitude},${record.location.longitude}`
                 ).join('\n');
             
             const encodedUri = encodeURI(csvContent);
@@ -810,9 +862,10 @@
                                 <div class="font-medium text-gray-800">${record.name}</div>
                                 <div class="text-sm text-gray-600">NISN: ${record.nisn} | Kelas: ${record.class}</div>
                                 <div class="text-xs text-gray-500">Tanggal: ${record.date} | Waktu: ${record.time}</div>
+                                ${record.locationName ? `<div class="text-xs text-blue-600">📍 ${record.locationName}</div>` : ''}
                             </div>
                             <div class="text-xs text-gray-500">
-                                📍 ${record.location.latitude.toFixed(4)}, ${record.location.longitude.toFixed(4)}
+                                ${record.location.latitude.toFixed(4)}, ${record.location.longitude.toFixed(4)}
                             </div>
                         </div>
                     `;
@@ -838,5 +891,5 @@
         // Initialize app
         init();
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9853fcd6c19ece39',t:'MTc1ODkwMjU2Ny4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'98540214a58fce39',t:'MTc1ODkwMjc4Mi4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
