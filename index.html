@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aplikasi Absensi GPS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            box-sizing: border-box;
+        }
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .card-shadow {
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+        .pulse-animation {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+    </style>
+</head>
+<body class="gradient-bg min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-white mb-2">📍 Absensi GPS</h1>
+            <p class="text-white/80">Sistem absensi dengan lokasi dan token keamanan</p>
+        </div>
+
+        <!-- Main Content -->
+        <div id="mainContent" class="max-w-md mx-auto">
+            <!-- Student Login Form -->
+            <div id="studentForm" class="bg-white rounded-2xl p-6 card-shadow mb-6">
+                <div class="text-center mb-6">
+                    <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <span class="text-2xl">👨‍🎓</span>
+                    </div>
+                    <h2 class="text-2xl font-bold text-gray-800">Absensi Siswa</h2>
+                </div>
+
+                <form id="attendanceForm" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">NISN</label>
+                        <input type="text" id="studentNISN" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg" placeholder="Masukkan NISN" required>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Token Absensi</label>
+                        <input type="text" id="attendanceToken" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg text-center font-bold" placeholder="Masukkan token dari guru" required>
+                        <div class="mt-2 text-sm text-gray-600">
+                            <span class="font-medium">Token berlaku:</span> 
+                            <span id="tokenTimer" class="text-blue-600 font-bold">30</span> detik
+                        </div>
+                    </div>
+
+                    <!-- Location Status -->
+                    <div id="locationStatus" class="bg-gray-50 rounded-lg p-4">
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm font-medium text-gray-700">Status Lokasi:</span>
+                            <span id="locationText" class="text-sm text-orange-600">Menunggu...</span>
+                        </div>
+                        <div id="coordinates" class="text-xs text-gray-500 mt-1"></div>
+                    </div>
+
+                    <button type="submit" id="submitBtn" class="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed">
+                        📍 Submit Absensi
+                    </button>
+                </form>
+            </div>
+
+            <!-- Admin Access -->
+            <div class="text-center">
+                <button id="adminBtn" class="text-white/80 hover:text-white text-sm underline">
+                    🔐 Akses Admin
+                </button>
+            </div>
+        </div>
+
+        <!-- Admin Panel -->
+        <div id="adminPanel" class="max-w-2xl mx-auto hidden">
+            <div class="bg-white rounded-2xl p-6 card-shadow">
+                <div class="flex items-center justify-between mb-6">
+                    <h2 class="text-2xl font-bold text-gray-800">🔧 Panel Admin</h2>
+                    <button id="backToStudent" class="text-blue-600 hover:text-blue-800">
+                        ← Kembali
+                    </button>
+                </div>
+
+                <!-- Admin Login -->
+                <div id="adminLogin" class="mb-6">
+                    <div class="flex gap-2">
+                        <input type="password" id="adminPassword" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg" placeholder="Password admin">
+                        <button id="loginAdmin" class="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700">
+                            Login
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Admin Controls -->
+                <div id="adminControls" class="hidden space-y-6">
+                    <!-- Current Token Display -->
+                    <div class="bg-blue-50 rounded-lg p-4">
+                        <h3 class="font-semibold text-gray-800 mb-2">Token Aktif</h3>
+                        <div class="text-center">
+                            <div id="currentToken" class="text-3xl font-bold text-blue-600 mb-2 pulse-animation">ABCD1234</div>
+                            <div class="text-sm text-gray-600">
+                                Berubah setiap <span id="adminTokenTimer" class="font-bold">30</span> detik
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Student Management -->
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <h3 class="font-semibold text-gray-800 mb-4">Kelola Data Siswa</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                            <input type="text" id="newStudentName" class="px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="Nama siswa">
+                            <input type="text" id="newStudentNISN" class="px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="NISN">
+                            <select id="newStudentClass" class="px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                                <option value="">Pilih Kelas</option>
+                                <option value="X-A">X-A</option>
+                                <option value="X-B">X-B</option>
+                                <option value="XI-A">XI-A</option>
+                                <option value="XI-B">XI-B</option>
+                                <option value="XII-A">XII-A</option>
+                                <option value="XII-B">XII-B</option>
+                            </select>
+                        </div>
+                        <button id="addStudent" class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700">
+                            + Tambah Siswa
+                        </button>
+                    </div>
+
+                    <!-- Attendance Records -->
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <h3 class="font-semibold text-gray-800 mb-4">Rekap Absensi Hari Ini</h3>
+                        <div id="attendanceList" class="space-y-2 max-h-60 overflow-y-auto">
+                            <!-- Attendance records will be populated here -->
+                        </div>
+                        <button id="clearAttendance" class="mt-4 bg-red-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-red-700">
+                            🗑️ Hapus Semua Data
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Success Modal -->
+        <div id="successModal" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 hidden">
+            <div class="bg-white rounded-2xl p-6 max-w-md w-full text-center">
+                <div class="text-6xl mb-4">✅</div>
+                <h3 class="text-xl font-bold text-gray-800 mb-4">Absensi Berhasil!</h3>
+                
+                <!-- Student Identity Display -->
+                <div id="studentIdentity" class="bg-blue-50 rounded-lg p-4 mb-4 text-left">
+                    <div class="grid grid-cols-2 gap-2 text-sm">
+                        <div class="font-medium text-gray-700">Nama:</div>
+                        <div id="modalName" class="text-gray-800"></div>
+                        <div class="font-medium text-gray-700">NISN:</div>
+                        <div id="modalNISN" class="text-gray-800"></div>
+                        <div class="font-medium text-gray-700">Kelas:</div>
+                        <div id="modalClass" class="text-gray-800"></div>
+                        <div class="font-medium text-gray-700">Waktu:</div>
+                        <div id="modalTime" class="text-gray-800"></div>
+                        <div class="font-medium text-gray-700">Lokasi:</div>
+                        <div id="modalLocation" class="text-gray-800 text-xs"></div>
+                    </div>
+                </div>
+                
+                <p class="text-gray-600 mb-4">Data absensi telah tersimpan dengan aman</p>
+                <button id="closeModal" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">
+                    Tutup
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let currentToken = 'ABCD1234';
+        let tokenTimer = 30;
+        let userLocation = null;
+        let attendanceRecords = JSON.parse(localStorage.getItem('attendanceRecords') || '[]');
+        let studentDatabase = JSON.parse(localStorage.getItem('studentDatabase') || JSON.stringify([
+            { name: 'Ahmad Rizki', nisn: '1234567890', class: 'XII-A' },
+            { name: 'Siti Nurhaliza', nisn: '1234567891', class: 'XII-A' },
+            { name: 'Budi Santoso', nisn: '1234567892', class: 'XI-B' },
+            { name: 'Dewi Sartika', nisn: '1234567893', class: 'X-A' }
+        ]));
+
+        // DOM elements
+        const studentForm = document.getElementById('studentForm');
+        const adminPanel = document.getElementById('adminPanel');
+        const adminBtn = document.getElementById('adminBtn');
+        const backToStudent = document.getElementById('backToStudent');
+        const attendanceForm = document.getElementById('attendanceForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const locationStatus = document.getElementById('locationStatus');
+        const locationText = document.getElementById('locationText');
+        const coordinates = document.getElementById('coordinates');
+        const tokenTimerEl = document.getElementById('tokenTimer');
+        const adminTokenTimerEl = document.getElementById('adminTokenTimer');
+        const currentTokenEl = document.getElementById('currentToken');
+        const successModal = document.getElementById('successModal');
+        const closeModal = document.getElementById('closeModal');
+        const adminLogin = document.getElementById('adminLogin');
+        const adminControls = document.getElementById('adminControls');
+        const loginAdmin = document.getElementById('loginAdmin');
+        const adminPassword = document.getElementById('adminPassword');
+        const attendanceList = document.getElementById('attendanceList');
+
+        // Initialize app
+        function init() {
+            requestLocation();
+            startTokenTimer();
+            updateAttendanceDisplay();
+            
+            // Disable submit initially
+            submitBtn.disabled = true;
+        }
+
+        // Location functions
+        function requestLocation() {
+            if (!navigator.geolocation) {
+                locationText.textContent = 'GPS tidak didukung';
+                locationText.className = 'text-sm text-red-600';
+                return;
+            }
+
+            locationText.textContent = 'Mengakses lokasi...';
+            locationText.className = 'text-sm text-orange-600';
+
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    userLocation = {
+                        latitude: position.coords.latitude,
+                        longitude: position.coords.longitude,
+                        accuracy: position.coords.accuracy
+                    };
+                    
+                    locationText.textContent = 'Lokasi terdeteksi ✓';
+                    locationText.className = 'text-sm text-green-600';
+                    coordinates.textContent = `Lat: ${userLocation.latitude.toFixed(6)}, Lng: ${userLocation.longitude.toFixed(6)}`;
+                    
+                    submitBtn.disabled = false;
+                },
+                (error) => {
+                    let errorMsg = 'Gagal mengakses lokasi';
+                    switch(error.code) {
+                        case error.PERMISSION_DENIED:
+                            errorMsg = 'Akses lokasi ditolak';
+                            break;
+                        case error.POSITION_UNAVAILABLE:
+                            errorMsg = 'Lokasi tidak tersedia';
+                            break;
+                        case error.TIMEOUT:
+                            errorMsg = 'Timeout mengakses lokasi';
+                            break;
+                    }
+                    
+                    locationText.textContent = errorMsg;
+                    locationText.className = 'text-sm text-red-600';
+                    coordinates.textContent = 'Harap aktifkan GPS dan izinkan akses lokasi';
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 60000
+                }
+            );
+        }
+
+        // Token management
+        function generateToken() {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+            let result = '';
+            for (let i = 0; i < 8; i++) {
+                result += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return result;
+        }
+
+        function startTokenTimer() {
+            setInterval(() => {
+                tokenTimer--;
+                tokenTimerEl.textContent = tokenTimer;
+                if (adminTokenTimerEl) {
+                    adminTokenTimerEl.textContent = tokenTimer;
+                }
+                
+                if (tokenTimer <= 0) {
+                    currentToken = generateToken();
+                    currentTokenEl.textContent = currentToken;
+                    tokenTimer = 30;
+                }
+            }, 1000);
+        }
+
+        // Form submission
+        attendanceForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const nisn = document.getElementById('studentNISN').value;
+            const token = document.getElementById('attendanceToken').value;
+            
+            // Validate token
+            if (token !== currentToken) {
+                alert('Token tidak valid! Pastikan token yang dimasukkan benar.');
+                return;
+            }
+            
+            // Validate location
+            if (!userLocation) {
+                alert('Lokasi belum terdeteksi! Pastikan GPS aktif dan izinkan akses lokasi.');
+                requestLocation();
+                return;
+            }
+            
+            // Find student in database
+            const student = studentDatabase.find(s => s.nisn === nisn);
+            if (!student) {
+                alert('NISN tidak ditemukan! Pastikan NISN sudah terdaftar di sistem.');
+                return;
+            }
+            
+            // Check if already attended today
+            const today = new Date().toDateString();
+            const existingRecord = attendanceRecords.find(record => 
+                record.nisn === nisn && record.date === today
+            );
+            
+            if (existingRecord) {
+                alert('NISN ini sudah melakukan absensi hari ini!');
+                return;
+            }
+            
+            const currentTime = new Date().toLocaleTimeString('id-ID');
+            
+            // Save attendance record
+            const attendanceRecord = {
+                name: student.name,
+                nisn: student.nisn,
+                class: student.class,
+                date: today,
+                time: currentTime,
+                location: userLocation,
+                timestamp: Date.now()
+            };
+            
+            attendanceRecords.push(attendanceRecord);
+            localStorage.setItem('attendanceRecords', JSON.stringify(attendanceRecords));
+            
+            // Update modal with student info
+            document.getElementById('modalName').textContent = student.name;
+            document.getElementById('modalNISN').textContent = student.nisn;
+            document.getElementById('modalClass').textContent = student.class;
+            document.getElementById('modalTime').textContent = currentTime;
+            document.getElementById('modalLocation').textContent = `${userLocation.latitude.toFixed(6)}, ${userLocation.longitude.toFixed(6)}`;
+            
+            // Show success modal
+            successModal.classList.remove('hidden');
+            
+            // Reset form
+            attendanceForm.reset();
+            submitBtn.disabled = true;
+            userLocation = null;
+            locationText.textContent = 'Menunggu...';
+            locationText.className = 'text-sm text-orange-600';
+            coordinates.textContent = '';
+        });
+
+        // Admin functions
+        adminBtn.addEventListener('click', () => {
+            studentForm.parentElement.classList.add('hidden');
+            adminPanel.classList.remove('hidden');
+        });
+
+        backToStudent.addEventListener('click', () => {
+            adminPanel.classList.add('hidden');
+            studentForm.parentElement.classList.remove('hidden');
+            adminControls.classList.add('hidden');
+            adminLogin.classList.remove('hidden');
+            adminPassword.value = '';
+        });
+
+        loginAdmin.addEventListener('click', () => {
+            const password = adminPassword.value;
+            if (password === 'admin123') {
+                adminLogin.classList.add('hidden');
+                adminControls.classList.remove('hidden');
+                updateAttendanceDisplay();
+            } else {
+                alert('Password admin salah!');
+            }
+        });
+
+        // Add student
+        document.getElementById('addStudent').addEventListener('click', () => {
+            const name = document.getElementById('newStudentName').value;
+            const nisn = document.getElementById('newStudentNISN').value;
+            const studentClass = document.getElementById('newStudentClass').value;
+            
+            if (name && nisn && studentClass) {
+                const student = { name, nisn, class: studentClass };
+                studentDatabase.push(student);
+                localStorage.setItem('studentDatabase', JSON.stringify(studentDatabase));
+                
+                // Clear form
+                document.getElementById('newStudentName').value = '';
+                document.getElementById('newStudentNISN').value = '';
+                document.getElementById('newStudentClass').value = '';
+                
+                alert('Siswa berhasil ditambahkan!');
+            } else {
+                alert('Harap lengkapi semua data siswa!');
+            }
+        });
+
+        // Clear attendance
+        document.getElementById('clearAttendance').addEventListener('click', () => {
+            if (confirm('Yakin ingin menghapus semua data absensi?')) {
+                attendanceRecords = [];
+                localStorage.setItem('attendanceRecords', JSON.stringify(attendanceRecords));
+                updateAttendanceDisplay();
+                alert('Data absensi berhasil dihapus!');
+            }
+        });
+
+        // Update attendance display
+        function updateAttendanceDisplay() {
+            const today = new Date().toDateString();
+            const todayRecords = attendanceRecords.filter(record => record.date === today);
+            
+            attendanceList.innerHTML = '';
+            
+            if (todayRecords.length === 0) {
+                attendanceList.innerHTML = '<p class="text-gray-500 text-sm text-center py-4">Belum ada absensi hari ini</p>';
+                return;
+            }
+            
+            todayRecords.forEach(record => {
+                const recordEl = document.createElement('div');
+                recordEl.className = 'bg-white rounded-lg p-3 border border-gray-200';
+                recordEl.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <div class="font-medium text-gray-800">${record.name}</div>
+                            <div class="text-sm text-gray-600">NISN: ${record.nisn} | Kelas: ${record.class}</div>
+                            <div class="text-xs text-gray-500">Waktu: ${record.time}</div>
+                        </div>
+                        <div class="text-xs text-gray-500">
+                            📍 ${record.location.latitude.toFixed(4)}, ${record.location.longitude.toFixed(4)}
+                        </div>
+                    </div>
+                `;
+                attendanceList.appendChild(recordEl);
+            });
+        }
+
+        // Modal close
+        closeModal.addEventListener('click', () => {
+            successModal.classList.add('hidden');
+            requestLocation(); // Request location again for next attendance
+        });
+
+        // Initialize app
+        init();
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9853ee3b248d3440',t:'MTc1ODkwMTk2OS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
